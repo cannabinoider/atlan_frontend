@@ -51,7 +51,7 @@ export default function AdminNavbar() {
   const options = [
     { icon: roadIcon, route: '/admin/dashboard', value: 'Dashboard', action: () => router.push('/admin/dashboard') },
     // { icon: cabIcon, route: '/admin/vehicles', value: 'Vehicles', action: () => router.push('/admin/vehicles') },
-    // { icon: <Face6RoundedIcon />, route: '/admin/m', value: 'Management', action: () => router.push('/admin/management') },
+    { icon: <Face6RoundedIcon />, route: '/admin/grids', value: 'DataGrids', action: () => router.push('/admin/grids') },
     { icon: <TrackChangesIcon />, route: '/admin/analytics', value: 'Analytics', action: () => router.push('/admin/analytics') },
     { icon: <LogoutIcon />, value: 'Logout', action: handleLogoutClick }
   ];

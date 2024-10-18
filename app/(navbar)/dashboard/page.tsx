@@ -19,13 +19,24 @@ import {
     Grid,
 } from "@mui/material";
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import { MapContainer, TileLayer, Polyline, Marker, useMap, Popup } from 'react-leaflet'; // Import Marker
+import { MapContainer, TileLayer, Polyline, Marker, useMap, Popup } from 'react-leaflet'; 
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import { addBooking } from "@/actions/api";
 
 interface Coordinates {
     lat: number;
     lng: number;
+}
+enum VehicleType {
+    LIGHT = "light",
+    MEDIUM = "medium",
+    HEAVY = "heavy",
+}
+
+enum GoodType {
+    PERISHABLE = "perishable",
+    NON_PERISHABLE = "nonPerishable",
 }
 
 export default function UserDashboard() {
@@ -42,12 +53,14 @@ export default function UserDashboard() {
     const [route, setRoute] = useState<[number, number][]>([]);
     const [loading, setLoading] = useState(false);
     const username = localStorage.getItem('username');
-    const [estimatedCost] = useState(1000); 
+    const [estimatedCost, setEstimatedCost] = useState(0); 
     const [userAmount, setUserAmount] = useState("");
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [isBookingConfirmed, setIsBookingConfirmed] = useState(false);
     const [isPaymentProcessed, setIsPaymentProcessed] = useState(false);
-
+    const [distance, setDistance] = useState(0);
+    const [graphhopperResponse, setGraphhopperResponse] = useState(null); 
+    const usersid = localStorage.getItem("userid");
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
@@ -65,7 +78,6 @@ export default function UserDashboard() {
         }
 
         const data = await response.json();
-        //console.log("data",data);
         return data.hits.map((hit: any) => ({
             name: hit.name,
             point: hit.point as Coordinates, 
@@ -113,9 +125,36 @@ export default function UserDashboard() {
         }
 
         const data = await response.json();
+        setGraphhopperResponse(data);  
         const points = data.paths[0].points.coordinates.map((point: [number, number]) => [point[1], point[0]]);
         setRoute(points);
+        const distanceInMeters = data.paths[0].distance;
+        const distanceInKilometers = distanceInMeters / 1000; 
+        setDistance(distanceInKilometers); 
+
+        const cost = calculateEstimatedCost();
+        setEstimatedCost(cost);
+
         setLoading(false);
+    };
+    const vehicleCostMultiplier: Record<VehicleType, number> = {
+        [VehicleType.LIGHT]: 12,
+        [VehicleType.MEDIUM]: 15,
+        [VehicleType.HEAVY]: 20,
+    };
+    const goodTypeMultiplier: Record<GoodType, number> = {
+        [GoodType.PERISHABLE]: 2,
+        [GoodType.NON_PERISHABLE]: 1,
+    };
+    const calculateEstimatedCost = () => {
+        const baseCostPerKg = 10; 
+
+        const weightCost = weight ? baseCostPerKg * Number(weight) : 0; 
+        const vehicleCost = vehicleType ? weightCost * vehicleCostMultiplier[vehicleType as VehicleType] : 0; 
+        const goodTypeCost = goodType ? vehicleCost * goodTypeMultiplier[goodType as GoodType] : 0; 
+        const distanceCost = distance * 10; 
+
+        return weightCost + vehicleCost + goodTypeCost + distanceCost;
     };
 
     useEffect(() => {
@@ -134,32 +173,37 @@ export default function UserDashboard() {
             alert("Entered amount does not match the estimated cost.");
         }
     };
+
     const allFieldsFilled = () => {
         return goodType && weight && vehicleType && pickupLocation && dropoffLocation;
     };
     
-    const handleConfirmBooking = () => {
+    const handleConfirmBooking = async () => {
         if (isPaymentProcessed) {
-            setIsBookingConfirmed(true);
-            console.log({
-                goodType,
-                weight,
-                vehicleType,
-                pickupLocation,
-                dropoffLocation,
-                pickupCoordinates,
-                dropoffCoordinates,
-                estimatedCost
-            });
+            const bookingData = {
+                userId: Number(usersid),
+                good_type: goodType,  
+                good_weight: Number(weight),  
+                vehicle_type: vehicleType,  
+                pickup_location_address: pickupLocation,  
+                pickup_geolocation: `${pickupCoordinates?.lat},${pickupCoordinates?.lng}`,  
+                dropoff_location_address: dropoffLocation, 
+                dropoff_geolocation: `${dropoffCoordinates?.lat},${dropoffCoordinates?.lng}`,  
+                payment_status: estimatedCost.toString(),  
+                graphhopper_response: graphhopperResponse
+            };
+            console.log(bookingData);
+    
+            try {
+                await addBooking(bookingData);  
+                setIsBookingConfirmed(true);
+                console.log("Booking response:", bookingData);
+                setIsBookingConfirmed(true);
+            } catch (error) {
+                console.error("Error confirming booking:", error);
+            }
         }
     };
-    
-    <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => setSnackbarOpen(false)}
-        message="Payment Done"
-    />
 
     const MapWithMarkers = ({ pickup, dropoff, route }: any) => {
         const map = useMap();
@@ -458,7 +502,7 @@ export default function UserDashboard() {
                                                     onClick={handleBookingSubmit}
                                                     variant="contained"
                                                     style={{ backgroundColor: "black", color: "white" }}
-                                                    className={`w-full ${isPaymentProcessed ? "bg-gray-800 cursor-not-allowed" : "bg-black"} text-white ${isPaymentProcessed ? "filter blur-sm" : ""}`} 
+                                                    className={`w-full ${isPaymentProcessed ? "cursor-not-allowed" : "bg-black"} text-white ${isPaymentProcessed ? "filter" : ""}`} 
                                                     disabled={isPaymentProcessed} 
                                                 >
                                                     Process Payment
@@ -469,7 +513,7 @@ export default function UserDashboard() {
                                                     onClick={handleConfirmBooking}
                                                     variant="contained"
                                                     style={{backgroundColor: "black", color: "white" }}
-                                                    className={`w-full ${!isPaymentProcessed || isBookingConfirmed ? "bg-gray-800 cursor-not-allowed" : "bg-black"} text-white ${(!isPaymentProcessed || isBookingConfirmed) ? "filter blur-sm" : ""}`} 
+                                                    className={`w-full ${!isPaymentProcessed || isBookingConfirmed ? "cursor-not-allowed" : "bg-black"} text-white ${(!isPaymentProcessed || isBookingConfirmed) ? "filter" : ""}`} 
                                                     disabled={!isPaymentProcessed || isBookingConfirmed} 
                                                 >
                                                     Confirm Booking

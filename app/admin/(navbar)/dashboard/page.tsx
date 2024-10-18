@@ -18,7 +18,7 @@ import {
 } from "@mui/material";
 import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
-import { getVehicles, updateVehicle, addVehicle } from "@/actions/api";
+import { getVehicles, updateVehicle, addVehicle, } from "@/actions/api";
 import { getAuth } from "@/actions/cookie";
 
 const modalStyle = {
@@ -118,8 +118,8 @@ export default function UserDashboard({ username }: { username: string }) {
         <Box className="mx-5 ml-[250px] mt-11 max-[1420px]:mx-10 max-lg:mx-5">
             <Tabs value={tabValue} onChange={handleTabChange} aria-label="Dashboard Tabs">
                 <Tab label="Vehicles" />
-                <Tab label="Booking" />
-                <Tab label="Driver" />
+                {/* <Tab label="Booking" />
+                <Tab label="Driver" /> */}
             </Tabs>
 
             {tabValue === 0 && (

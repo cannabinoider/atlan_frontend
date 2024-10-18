@@ -128,6 +128,7 @@ export async function updateVehicle(body:{token:string, vehicle_id:string,vehicl
 
     return await res.json();
 }
+
 export async function getJobs() {
     const res = await fetch(`${process.env.BACKEND_URL}/api/drivers/jobs`, {
         method: "GET",
@@ -139,6 +140,22 @@ export async function getJobs() {
     if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || 'Data fetching failed');
+    }
+
+    return await res.json();
+}
+export async function acceptJobs(body:{bookingId:number,driverId:number}) {
+    const res = await fetch(`${process.env.BACKEND_URL}/api/drivers/accept-jobs`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Booking failed');
     }
 
     return await res.json();
@@ -171,6 +188,85 @@ export async function updateStatus(body:{bookingId:number,status:string}) {
     if (!res.ok) {
         const errorData = await res.json();
         throw new Error(errorData.message || 'Status Updation failed');
+    }
+
+    return await res.json();
+}
+export async function pushLocationOfDriver(bookingId: string, lattitude: string, longitude: string) {
+    const res = await fetch(`${process.env.BACKEND_URL}/api/drivers/current-location`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({bookingId: bookingId, latitude: lattitude, longitude: longitude}),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to update location');
+    }
+
+    return await res.json();
+}
+export async function addBooking(body:{userId:number,good_weight:number, good_type:string, vehicle_type:string, pickup_location_address:string, pickup_geolocation:string, dropoff_geolocation:string, dropoff_location_address:string, payment_status:string, graphhopper_response:any}) {
+    const res = await fetch(`${process.env.BACKEND_URL}/api/users/booking`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+        console.error("API error status:", res.status); 
+        const errorText = await res.text();  
+        console.error("API error response:", errorText);  
+        throw new Error(errorText || 'Booking Failed');
+    }
+
+    return await res.json();
+}
+export async function getSelectedBooking(userId: number) {
+    const res = await fetch(`${process.env.BACKEND_URL}/api/users/booking-status?userId=${userId}`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Data fetching failed');
+    }
+
+    return await res.json();
+}
+export async function getBookingData() {
+    const res = await fetch(`${process.env.BACKEND_URL}/api/admin/get-all-bookings`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Data fetching failed');
+    }
+
+    return await res.json();
+}
+export async function getDriversData() {
+    const res = await fetch(`${process.env.BACKEND_URL}/api/admin/get-driver-locations`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+        },
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Data fetching failed');
     }
 
     return await res.json();

@@ -10,45 +10,18 @@ import {
     AccordionDetails,
     Card,
     CardContent,
+    Button,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { MapContainer, TileLayer, Polyline, Marker, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
+import { getSelectedBooking } from "@/actions/api";
 
 interface Coordinates {
     lat: number;
     lng: number;
 }
-
-const dummyBookings = [
-    {
-        id: "BK1234",
-        status: "In Transit",
-        goodType: "Electronics",
-        weight: "150kg",
-        vehicleType: "Truck",
-        cost: "1200",
-        pickupLocation:"Delhi",
-        dropoffLocation:"Mumbai",
-        pickupCoordinates: { lat: 28.7041, lng: 77.1025 }, // Delhi
-        dropoffCoordinates: { lat: 19.0760, lng: 72.8777 }, // Mumbai
-        driverCoordinates: { lat: 24.5854, lng: 73.7125 }, // Rajasthan
-    },
-    {
-        id: "BK5678",
-        status: "Waiting for Pickup",
-        goodType: "Furniture",
-        weight: "300kg",
-        vehicleType: "Van",
-        cost: "800",
-        pickupLocation:"Chennai",
-        dropoffLocation:"Hubli",
-        pickupCoordinates: { lat: 13.0827, lng: 80.2707 }, // Chennai
-        dropoffCoordinates: { lat: 15.3173, lng: 75.7139 }, // Hubli
-        driverCoordinates: { lat: 14.9129, lng: 77.0080 }, // Somewhere near Bangalore
-    },
-];
 
 const createCustomIcon = (color: string) => {
     return L.divIcon({
@@ -62,32 +35,6 @@ const createCustomIcon = (color: string) => {
 const pickupIcon = createCustomIcon("green");
 const dropoffIcon = createCustomIcon("red");
 const driverIcon = createCustomIcon("blue");
-
-const fetchBookingDetails = (bookingId: string) => {
-    const booking = dummyBookings.find((b) => b.id === bookingId);
-    if (!booking) return null;
-
-    return {
-        pickupCoordinates: booking.pickupCoordinates,
-        dropoffCoordinates: booking.dropoffCoordinates,
-        driverCoordinates: booking.driverCoordinates,
-    };
-};
-
-const fetchRoute = async (pickup: Coordinates, dropoff: Coordinates) => {
-    const apiKey = `${process.env.NEXT_PUBLIC_API_KEY}`;
-    const response = await fetch(
-        `https://graphhopper.com/api/1/route?point=${pickup.lat},${pickup.lng}&point=${dropoff.lat},${dropoff.lng}&vehicle=car&locale=en&points_encoded=false&key=${apiKey}`
-    );
-
-    if (!response.ok) {
-        console.error("Failed to fetch route");
-        return [];
-    }
-
-    const data = await response.json();
-    return data.paths[0].points.coordinates.map((point: [number, number]) => [point[1], point[0]]);
-};
 
 const MapWithMarkers = ({ pickup, dropoff, driver, route }: any) => {
     const map = useMap();
@@ -109,31 +56,79 @@ const MapWithMarkers = ({ pickup, dropoff, driver, route }: any) => {
 
     return (
         <>
-            <Marker position={[pickup.lat, pickup.lng]} icon={pickupIcon}></Marker>
-            <Marker position={[dropoff.lat, dropoff.lng]} icon={dropoffIcon}></Marker>
-            {driver && (
-                <Marker position={[driver.lat, driver.lng]} icon={driverIcon}></Marker>
-            )}
+            <Marker position={[pickup.lat, pickup.lng]} icon={pickupIcon} />
+            <Marker position={[dropoff.lat, dropoff.lng]} icon={dropoffIcon} />
+            {driver && <Marker position={[driver.lat, driver.lng]} icon={driverIcon} />}
             {route.length > 0 && <Polyline positions={route} color="blue" />}
         </>
     );
 };
 
 export default function UserDashboard() {
-    const [expandedBooking, setExpandedBooking] = useState<string | false>(false);
+    const [latestBooking, setLatestBooking] = useState<any>(null);
+    const [expanded, setExpanded] = useState<boolean>(false);
     const [route, setRoute] = useState<[number, number][]>([]);
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
+    const [fetchError, setFetchError] = useState(false);
 
-    const handleAccordionChange = (bookingId: string) => async () => {
-        setExpandedBooking((prev) => (prev === bookingId ? false : bookingId));
+    const fetchBookings = async () => {
+        try {
+            const userId = localStorage.getItem("userid");
+            console.log(userId);
+            if (!userId) {
+                setFetchError(true);
+                return;
+            }
+            const data = await getSelectedBooking(parseInt(userId));
+            console.log("API Response Data:", data);
 
-        const bookingDetails = fetchBookingDetails(bookingId);
-        if (bookingDetails) {
-            setLoading(true);
-            const fetchedRoute = await fetchRoute(bookingDetails.pickupCoordinates, bookingDetails.dropoffCoordinates);
-            setRoute(fetchedRoute);
+            if (data && data.bookings && data.bookings.rows) {
+                const latest = data.bookings.rows[data.bookings.rows.length - 1];
+                setLatestBooking({
+                    id: latest.id,
+                    status: latest.status,
+                    goodType: latest.good_type,
+                    weight: `${latest.good_weight}kg`,
+                    vehicleType: latest.vehicle_type,
+                    cost: latest.payment_status,
+                    pickupLocation: latest.pickup_location_address,
+                    dropoffLocation: latest.dropoff_location_address,
+                    pickupCoordinates: {
+                        lat: parseFloat(latest.pickup_geolocation.split(',')[0]),
+                        lng: parseFloat(latest.pickup_geolocation.split(',')[1]),
+                    },
+                    dropoffCoordinates: {
+                        lat: parseFloat(latest.dropoff_geolocation.split(',')[0]),
+                        lng: parseFloat(latest.dropoff_geolocation.split(',')[1]),
+                    },
+                    driverCoordinates: {
+                        lat: parseFloat(latest.latitude),
+                        lng: parseFloat(latest.longitude),
+                    },
+                    route: latest.graphhopper_response.paths[0].points.coordinates.map((point: [number, number]) => [point[1], point[0]]), // Extracting route from graphhopper_response
+                });
+                setFetchError(false); 
+            } else {
+                console.error("Invalid data structure", data);
+                setFetchError(true); 
+            }
+        } catch (error) {
+            console.error("Error fetching bookings:", error);
+            setFetchError(true); 
+        } finally {
             setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchBookings(); 
+    }, []);
+
+    const handleAccordionChange = () => {
+        setExpanded((prev) => !prev);
+        if (!expanded && latestBooking) {
+            setRoute(latestBooking.route);
         }
     };
 
@@ -143,32 +138,43 @@ export default function UserDashboard() {
                 Current Booking Status
             </Typography>
 
-            {dummyBookings.map((booking) => (
-                <Accordion key={booking.id} expanded={expandedBooking === booking.id} onChange={handleAccordionChange(booking.id)} sx={{ marginBottom: "20px" }}>
-                    <AccordionSummary expandIcon={<ExpandMoreIcon />} >
-                        <Typography>Booking ID: {booking.id}</Typography>
-                        <Typography>Status: {booking.status}</Typography>
+            {loading ? (
+                <CircularProgress />
+            ) : fetchError ? (
+                <Box textAlign="center" mt={4}>
+                    <Typography variant="h6">
+                        No driver has yet accepted your bookings. Please try again later.
+                    </Typography>
+                    <Button style={{backgroundColor: "black", color: "white" }} variant="contained" onClick={fetchBookings} sx={{ mt: 2 }}>
+                        Try Again
+                    </Button>
+                </Box>
+            ) : latestBooking ? (
+                <Accordion expanded={expanded} onChange={handleAccordionChange} sx={{ marginBottom: "20px" }}>
+                    <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                        <Typography>Booking ID : {latestBooking.id} </Typography>
+                        <Typography ml={2}>Status : {latestBooking.status} </Typography>
                     </AccordionSummary>
                     <AccordionDetails>
                         <Card variant="outlined">
                             <CardContent>
-                                <Typography>Good Type: {booking.goodType}</Typography>
-                                <Typography>Weight: {booking.weight}</Typography>
-                                <Typography>Cost: {booking.cost}</Typography>
-                                <Typography>Vehicle: {booking.vehicleType}</Typography>
-                                <Typography>Pickup: {booking.pickupLocation}</Typography>
-                                <Typography>Destination: {booking.dropoffLocation}</Typography>
+                                <Typography>Good Type: {latestBooking.goodType}</Typography>
+                                <Typography>Weight: {latestBooking.weight}</Typography>
+                                <Typography>Cost: {latestBooking.cost}</Typography>
+                                <Typography>Vehicle: {latestBooking.vehicleType}</Typography>
+                                <Typography>Pickup: {latestBooking.pickupLocation}</Typography>
+                                <Typography>Destination: {latestBooking.dropoffLocation}</Typography>
 
                                 <div style={{ height: "400px", marginTop: "20px" }}>
-                                    <MapContainer center={[20.5937, 78.9629]} zoom={5} style={{ height: "100%", width: "100%" }}>
+                                    <MapContainer center={latestBooking.pickupCoordinates} zoom={10} style={{ height: "100%", width: "100%" }}>
                                         <TileLayer
                                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                                         />
                                         <MapWithMarkers
-                                            pickup={booking.pickupCoordinates}
-                                            dropoff={booking.dropoffCoordinates}
-                                            driver={booking.driverCoordinates}
+                                            pickup={latestBooking.pickupCoordinates}
+                                            dropoff={latestBooking.dropoffCoordinates}
+                                            driver={latestBooking.driverCoordinates}
                                             route={route}
                                         />
                                     </MapContainer>
@@ -177,22 +183,16 @@ export default function UserDashboard() {
                         </Card>
                     </AccordionDetails>
                 </Accordion>
-            ))}
-
-            {loading && (
-                <Box display="flex" justifyContent="center" alignItems="center" mt={2}>
-                    <CircularProgress />
-                </Box>
+            ) : (
+                <Typography>No bookings yet</Typography>
             )}
 
-            {snackbarOpen && (
-                <Snackbar
-                    open={snackbarOpen}
-                    autoHideDuration={6000}
-                    onClose={() => setSnackbarOpen(false)}
-                    message="Payment Done"
-                />
-            )}
+            <Snackbar
+                open={snackbarOpen}
+                autoHideDuration={6000}
+                onClose={() => setSnackbarOpen(false)}
+                message="An error occurred while fetching bookings."
+            />
         </div>
     );
 }

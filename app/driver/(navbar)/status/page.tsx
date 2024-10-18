@@ -14,14 +14,24 @@ import "leaflet/dist/leaflet.css";
 import axios from "axios";
 import { LatLngTuple, LatLngBounds } from "leaflet";
 import { SelectChangeEvent } from "@mui/material";
-import { getSelectedJob, updateStatus } from "@/actions/api";
+import { getSelectedJob, pushLocationOfDriver, updateStatus } from "@/actions/api";
+
+function useInterval(callback: () => void, delay: number) {
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      callback();
+    }, delay);
+
+    return () => clearInterval(intervalId); 
+  }, [callback, delay]);
+}
 
 function FitBounds({ routeCoordinates, driverCoordinates }: { routeCoordinates: LatLngTuple[], driverCoordinates: LatLngTuple }) {
   const map = useMap();
 
   useEffect(() => {
     if (routeCoordinates.length > 0) {
-      const bounds = new LatLngBounds([...routeCoordinates, driverCoordinates]); 
+      const bounds = new LatLngBounds([...routeCoordinates, driverCoordinates]);
       map.fitBounds(bounds);
     }
   }, [map, routeCoordinates, driverCoordinates]);
@@ -36,6 +46,29 @@ export default function DriverStatus() {
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [currentStatus, setCurrentStatus] = useState("Picking Good"); 
   const driverId = localStorage.getItem("driverId");
+  const updatingFrequency =  1000;
+
+  useInterval(() => {
+    if (selectedJob?.booking_id) { 
+      try {
+        if (navigator.geolocation) {
+          console.log("Updating driver position...");
+          navigator.geolocation.getCurrentPosition(async (position) => {
+            await pushLocationOfDriver(
+              selectedJob.booking_id, 
+              position.coords.latitude.toString(), 
+              position.coords.longitude.toString()
+            );
+            console.log("Location updated");
+          });
+        } else {
+          console.log("Geolocation is not supported by this browser.");
+        }
+      } catch (error) {
+        console.log("Error updating location: ", error);
+      }
+    }
+  }, updatingFrequency);
 
   useEffect(() => {
     const fetchSelectedJob = async () => {
@@ -44,14 +77,22 @@ export default function DriverStatus() {
           const jobData = await getSelectedJob(parseInt(driverId));
           console.log("Fetched job data:", jobData);
           if (jobData && jobData.jobs && jobData.jobs.length > 0) {
-            const job = jobData.jobs[0]; 
+            const job = jobData.jobs[0];
             setSelectedJob(job);
             const pickupCoordinates: LatLngTuple = job.pickup_geolocation.split(",").map(Number) as LatLngTuple;
             const dropoffCoordinates: LatLngTuple = job.dropoff_geolocation.split(",").map(Number) as LatLngTuple;
 
             setDriverCoordinates(pickupCoordinates);
+            
+            if (job.graphhopper_response && job.graphhopper_response.paths) {
+              const path = job.graphhopper_response.paths[0].points.coordinates.map(
+                (coord: number[]) => [coord[1], coord[0]] as LatLngTuple
+              );
+              setRouteCoordinates(path);
+              console.log("Route set from graphhopper_response:", path);
+            }
 
-            await fetchRoute(pickupCoordinates, dropoffCoordinates);
+            await updateDriverLocation(pickupCoordinates);
           }
         } catch (error) {
           console.error("Error fetching selected job:", error);
@@ -61,29 +102,24 @@ export default function DriverStatus() {
       }
     };
 
+    const updateDriverLocation = async (pickupCoordinates: LatLngTuple) => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (position) => {
+          console.log("Updating position immediately...");
+          await pushLocationOfDriver(
+            selectedJob?.booking_id, 
+            position.coords.latitude.toString(), 
+            position.coords.longitude.toString()
+          );
+          console.log("Location updated immediately");
+        });
+      } else {
+        console.log("Geolocation is not supported by this browser.");
+      }
+    };
+
     fetchSelectedJob();
   }, [driverId]);
-
-  const fetchRoute = async (pickup: LatLngTuple, dropoff: LatLngTuple) => {
-    const apiKey = process.env.NEXT_PUBLIC_API_KEY;
-    const start = `${pickup[0]},${pickup[1]}`;
-    const end = `${dropoff[0]},${dropoff[1]}`;
-
-    try {
-      const response = await axios.get(
-        `https://graphhopper.com/api/1/route?point=${start}&point=${end}&vehicle=car&locale=en&points_encoded=false&key=${apiKey}`
-      );
-
-      const path = response.data.paths[0].points.coordinates.map(
-        (coord: number[]) => [coord[1], coord[0]] as LatLngTuple
-      );
-      setRouteCoordinates(path);
-
-      console.log("Route fetched successfully:", path);
-    } catch (error) {
-      console.error("Error fetching route from GraphHopper:", error);
-    }
-  };
 
   const handleStatusUpdate = (event: SelectChangeEvent<string>) => {
     setStatus(event.target.value as string);

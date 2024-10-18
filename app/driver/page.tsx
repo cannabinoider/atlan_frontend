@@ -120,7 +120,7 @@ export default function Home() {
         </Typography>
 
         <Typography variant="body2" style={{ marginTop: "10px" }}>
-          Don't have an account?{" "}
+          Don't have a Driver account?{" "}
           <Link className="text-black" href="/driver/signup-driver" underline="hover">
             Create one here
           </Link>

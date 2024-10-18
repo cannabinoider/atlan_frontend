@@ -15,10 +15,8 @@ import {
     TableHead,
     TableRow,
     Radio,
-    RadioGroup,
-    FormControlLabel,
 } from "@mui/material";
-import { getJobs } from "@/actions/api";  
+import { getJobs, acceptJobs } from "@/actions/api";  
 
 interface BookingRequest {
     id: string;
@@ -65,11 +63,26 @@ export default function UserDashboard() {
         setSelectedBooking(null);
     };
 
-    const handleBookingAccept = () => {
+    const handleBookingAccept = async () => {
         if (selectedBooking !== null) {
             const acceptedBooking = bookingRequests.find((request) => request.id === selectedBooking);
             console.log("Accepted Booking:", acceptedBooking);
-            setSelectedBooking(null); 
+
+            const driverId = localStorage.getItem('driverId'); 
+
+            try {
+                const response = await acceptJobs({
+                    bookingId: Number(selectedBooking), 
+                    driverId: Number(driverId), 
+                });
+
+                console.log("Booking accepted response:", response);
+                fetchBookingRequests(); 
+            } catch (error) {
+                console.error("Error accepting booking:", error);
+            } finally {
+                setSelectedBooking(null); 
+            }
         }
     };
 

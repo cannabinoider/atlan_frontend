@@ -49,7 +49,7 @@ export default function DriverNavbar() {
     // { icon: cabIcon, route: 'requests', value: 'Requests' },
     // { icon: <PaymentIcon />, route: 'pay-online', value: 'Payment' },
     { icon: <TrackChangesIcon />, route: '/driver/status', value: 'My Status' },
-    { icon: roadIcon, route: '/driver/history', value: 'History' },
+    // { icon: roadIcon, route: '/driver/history', value: 'History' },
     { icon: <LogoutIcon />, route: 'logout', value: 'Logout', action: handleLogoutClick },
   ];
 

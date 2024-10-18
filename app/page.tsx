@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { TextField, Button, Typography, Link } from "@mui/material";
 import { useRouter } from "next/navigation";
@@ -38,28 +37,6 @@ export default function Home() {
     }
 };
 
-
-  useEffect(() => {
-    const truck = document.querySelector(".truck");
-
-    if (truck) {
-      gsap.to(truck, {
-        duration: 8,
-        repeat: -1, 
-        ease: "power1.inOut", 
-        motionPath: {
-          path: [
-            { x: 0, y: 0 }, 
-            { x: window.innerWidth - 100, y: 0 }, 
-            { x: window.innerWidth - 100, y: window.innerHeight - 100 }, 
-            { x: 0, y: window.innerHeight - 100 },
-            { x: 0, y: 0 }, 
-          ],
-          autoRotate: true, 
-        },
-      });
-    }
-  }, []);
 
   return (
     <div className="login-page">

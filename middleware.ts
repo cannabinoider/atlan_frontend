@@ -52,7 +52,7 @@ export const config = {
     "/driver",
     "/driver/dashboard",
     "/driver/status",
-    "/admin/analytics"
-    
+    "/admin/analytics",
+    "/admin/grids"
   ],
 };
