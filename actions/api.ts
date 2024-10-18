@@ -159,7 +159,7 @@ export async function getSelectedJob(driverId: number) {
 
     return await res.json();
 }
-export async function updateStatus(body:{bookingId:string,status:string}) {
+export async function updateStatus(body:{bookingId:number,status:string}) {
     const res = await fetch(`${process.env.BACKEND_URL}/api/drivers/status`, {
         method: "POST",
         headers: {

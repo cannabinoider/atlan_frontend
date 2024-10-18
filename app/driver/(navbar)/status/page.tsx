@@ -14,7 +14,7 @@ import "leaflet/dist/leaflet.css";
 import axios from "axios";
 import { LatLngTuple, LatLngBounds } from "leaflet";
 import { SelectChangeEvent } from "@mui/material";
-import { getSelectedJob } from "@/actions/api";
+import { getSelectedJob, updateStatus } from "@/actions/api";
 
 function FitBounds({ routeCoordinates, driverCoordinates }: { routeCoordinates: LatLngTuple[], driverCoordinates: LatLngTuple }) {
   const map = useMap();
@@ -33,7 +33,8 @@ export default function DriverStatus() {
   const [driverCoordinates, setDriverCoordinates] = useState<LatLngTuple>([0, 0]);
   const [status, setStatus] = useState("Picking Good");
   const [routeCoordinates, setRouteCoordinates] = useState<LatLngTuple[]>([]);
-  const [selectedJob, setSelectedJob] = useState<any>(null); // Store the job details
+  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [currentStatus, setCurrentStatus] = useState("Picking Good"); 
   const driverId = localStorage.getItem("driverId");
 
   useEffect(() => {
@@ -88,8 +89,17 @@ export default function DriverStatus() {
     setStatus(event.target.value as string);
   };
 
-  const handleStatusSubmit = () => {
+  const handleStatusSubmit = async () => {
     console.log(`Driver status: ${status}`);
+    if (selectedJob) {
+      const bookingId = selectedJob.booking_id; 
+      try {
+        await updateStatus({ bookingId, status });
+        setCurrentStatus(status); 
+      } catch (error) {
+        console.error("Error updating status:", error);
+      }
+    }
   };
 
   return (
@@ -120,6 +130,9 @@ export default function DriverStatus() {
             <div className="space-x-4 mt-4">
               <Typography variant="h6" style={{ marginLeft: '20px', marginBottom: '10px' }}>
                 Update Status
+              </Typography>
+              <Typography style={{ marginLeft: '20px', marginBottom: '10px', fontWeight: 'bold' }}>
+                Current Status: {currentStatus}
               </Typography>
               <Select value={status} onChange={handleStatusUpdate} displayEmpty>
                 <MenuItem value="Picking Good">Picking Good</MenuItem>
