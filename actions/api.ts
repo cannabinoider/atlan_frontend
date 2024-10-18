@@ -170,7 +170,7 @@ export async function updateStatus(body:{bookingId:string,status:string}) {
 
     if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.message || 'Vehicle insertion failed');
+        throw new Error(errorData.message || 'Status Updation failed');
     }
 
     return await res.json();
