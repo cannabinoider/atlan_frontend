@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { gsap } from "gsap";
 import Image from "next/image";
 import truckImage from "@/public/Images/truck.jpg"; 
-import { loginUser } from '../actions/api';
-import { getAuth, setAuth, setSignupCookie } from "../actions/cookie";
+import { loginAdmin } from '@/actions/api';
+import { getAuth, setAuth, setSignupCookie } from "@/actions/cookie";
 
 export default function Home() {
   const [username, setUsername] = useState<string>("");
@@ -22,14 +22,9 @@ export default function Home() {
     setLoading(true);
 
     try {
-        const data = await loginUser({ username, password });
-        await setAuth(data.token);
-        localStorage.setItem('username', data.user.userName);
-        localStorage.setItem('userid', data.user.userId.toString()); 
-        localStorage.setItem('phone', data.user.userPhone);
-        localStorage.setItem('token', data.token);
-
-        router.push("/dashboard");
+        const data = await loginAdmin({ username, password }); 
+        await setAuth(data.token.token); 
+        router.push("/admin/dashboard"); 
     } catch (error: any) {
         setError(true);
         setHelperText(error.message || "An unexpected error occurred."); 
@@ -38,34 +33,10 @@ export default function Home() {
     }
 };
 
-
-  useEffect(() => {
-    const truck = document.querySelector(".truck");
-
-    if (truck) {
-      gsap.to(truck, {
-        duration: 8,
-        repeat: -1, 
-        ease: "power1.inOut", 
-        motionPath: {
-          path: [
-            { x: 0, y: 0 }, 
-            { x: window.innerWidth - 100, y: 0 }, 
-            { x: window.innerWidth - 100, y: window.innerHeight - 100 }, 
-            { x: 0, y: window.innerHeight - 100 },
-            { x: 0, y: 0 }, 
-          ],
-          autoRotate: true, 
-        },
-      });
-    }
-  }, []);
-
   return (
     <div className="login-page">
-      
       <div className="flex flex-col items-center justify-center min-h-screen">
-        <div className="flex flex-row px-8">
+      <div className="flex flex-row px-8">
         <Image className="mb-2" src={truckImage} alt="Moving Truck" width={100} height={100} />        
        <h1 className="text-5xl font-bold mb-6">GoodPort</h1>
         </div>
@@ -123,7 +94,7 @@ export default function Home() {
             type="submit"
             variant="contained"
             fullWidth
-            style={{ marginTop: "20px", backgroundColor: "black", color: "white" }} 
+            style={{ marginTop: "20px", backgroundColor: "black", color: "white" }}
             disabled={loading}
           >
             {loading ? "Logging In..." : "Sign In"}
@@ -135,17 +106,17 @@ export default function Home() {
             Driver Login
           </Link>{" "}
           |{" "}
-          <Link className="text-black" href="/admin" underline="hover">
-            Admin Login
+          <Link className="text-black" href="/" underline="hover">
+            User Login
           </Link>
         </Typography>
 
-        <Typography variant="body2" style={{ marginTop: "10px" }}>
+        {/* <Typography variant="body2" style={{ marginTop: "10px" }}>
           Don't have an account?{" "}
-          <Link className="text-black" href="/signup" underline="hover">
+          <Link href="/signup" underline="hover">
             Create one here
           </Link>
-        </Typography>
+        </Typography> */}
       </div>
     </div>
   );

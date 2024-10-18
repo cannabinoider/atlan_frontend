@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* :root {
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -24,4 +24,37 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+} */
+ /* Truck animation related CSS */
+.login-page {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden; /* Prevents scrollbars from appearing */
+  perspective: 1000px; /* Adds a 3D perspective for the truck */
+}
+
+.truck {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  transform-style: preserve-3d; /* Enables 3D transformations */
+  transform-origin: center; /* Ensures truck rotates from its center */
+}
+
+/* Styling for the login form */
+.flex {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.min-h-screen {
+  min-height: 100vh;
+}
+.hamburger-icon {
+  position: fixed; 
+  top: 20px; 
+  left: 0px; 
+  z-index: 1000; 
 }
