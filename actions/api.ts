@@ -159,6 +159,22 @@ export async function getSelectedJob(driverId: number) {
 
     return await res.json();
 }
+export async function updateStatus(body:{bookingId:string,status:string}) {
+    const res = await fetch(`${process.env.BACKEND_URL}/api/drivers/status`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Vehicle insertion failed');
+    }
+
+    return await res.json();
+}
 
 
 
