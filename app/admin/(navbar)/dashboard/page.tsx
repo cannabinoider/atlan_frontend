@@ -39,7 +39,7 @@ interface Vehicle {
     vehicle_status:string;
 }
 
-export default function UserDashboard({ username }: { username: string }) {
+export default function UserDashboard() {
     const [tabValue, setTabValue] = useState(0);
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
     const [modalOpen, setModalOpen] = useState(false);
