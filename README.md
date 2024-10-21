@@ -1,4 +1,6 @@
-GoodPort
+GoodPort  
+
+Deployed Link: https://goodport.onrender.com/  
 
 This logistics platform enables users to transport goods between locations with real-time tracking, driver assignment, and secure payment processing. The platform provides a smooth and efficient user experience, with built-in geolocation, route mapping, and analytics.
 
