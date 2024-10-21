@@ -17,6 +17,9 @@ import {
     Radio,
 } from "@mui/material";
 import { getJobs, acceptJobs } from "@/actions/api";  
+import { getAuth } from "@/actions/cookie";
+import { parseJwt } from "@/actions/utils";
+import { useRouter } from "next/navigation";
 
 interface BookingRequest {
     id: string;
@@ -29,10 +32,25 @@ interface BookingRequest {
 }
 
 export default function UserDashboard() {
+    const router = useRouter();
     const [tabValue, setTabValue] = useState(0);
     const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
     const [bookingRequests, setBookingRequests] = useState<BookingRequest[]>([]);
-    const username = localStorage.getItem('driverName');
+    const [username,setUsername] = useState("");
+    const [driverId,setDriverId] = useState("");
+    
+
+    useEffect(()=>{
+        const fetchData = async () => {
+            const token = await getAuth();
+            const data = parseJwt(token);
+            setUsername(data.userName);
+            setDriverId(data.userId);
+            // console.log(data); 
+            // console.log("Current token:", token);
+        };
+        fetchData();
+    },[])
 
     const fetchBookingRequests = async () => {
         try {
@@ -67,17 +85,14 @@ export default function UserDashboard() {
         if (selectedBooking !== null) {
             const acceptedBooking = bookingRequests.find((request) => request.id === selectedBooking);
             console.log("Accepted Booking:", acceptedBooking);
-
-            const driverId = localStorage.getItem('driverId'); 
-
             try {
                 const response = await acceptJobs({
                     bookingId: Number(selectedBooking), 
                     driverId: Number(driverId), 
                 });
 
-                console.log("Booking accepted response:", response);
-                fetchBookingRequests(); 
+                // console.log("Booking accepted response:", response);
+                router.push("/driver/status"); 
             } catch (error) {
                 console.error("Error accepting booking:", error);
             } finally {

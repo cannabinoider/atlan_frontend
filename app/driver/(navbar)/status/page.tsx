@@ -11,10 +11,13 @@ import {
 } from "@mui/material";
 import { MapContainer, TileLayer, Polyline, Circle, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import dynamic from 'next/dynamic';
 import axios from "axios";
 import { LatLngTuple, LatLngBounds } from "leaflet";
 import { SelectChangeEvent } from "@mui/material";
 import { getSelectedJob, pushLocationOfDriver, updateStatus } from "@/actions/api";
+import { getAuth } from "@/actions/cookie";
+import { parseJwt } from "@/actions/utils";
 
 function useInterval(callback: () => void, delay: number) {
   useEffect(() => {
@@ -26,18 +29,18 @@ function useInterval(callback: () => void, delay: number) {
   }, [callback, delay]);
 }
 
-function FitBounds({ routeCoordinates, driverCoordinates }: { routeCoordinates: LatLngTuple[], driverCoordinates: LatLngTuple }) {
-  const map = useMap();
+// function FitBounds({ routeCoordinates, driverCoordinates }: { routeCoordinates: LatLngTuple[], driverCoordinates: LatLngTuple }) {
+//   const map = useMap();
 
-  useEffect(() => {
-    if (routeCoordinates.length > 0) {
-      const bounds = new LatLngBounds([...routeCoordinates, driverCoordinates]);
-      map.fitBounds(bounds);
-    }
-  }, [map, routeCoordinates, driverCoordinates]);
+//   useEffect(() => {
+//     if (routeCoordinates.length > 0) {
+//       const bounds = new LatLngBounds([...routeCoordinates, driverCoordinates]);
+//       map.fitBounds(bounds);
+//     }
+//   }, [map, routeCoordinates, driverCoordinates]);
 
-  return null;
-}
+//   return null;
+// }
 
 export default function DriverStatus() {
   const [driverCoordinates, setDriverCoordinates] = useState<LatLngTuple>([0, 0]);
@@ -45,8 +48,24 @@ export default function DriverStatus() {
   const [routeCoordinates, setRouteCoordinates] = useState<LatLngTuple[]>([]);
   const [selectedJob, setSelectedJob] = useState<any>(null);
   const [currentStatus, setCurrentStatus] = useState("Picking Good"); 
-  const driverId = localStorage.getItem("driverId");
+  const [driverId, setDriverId] = useState("");
   const updatingFrequency =  1000;
+  const MapWithNoSSR = dynamic(() => import("react-leaflet").then((mod) => mod.MapContainer), { ssr: false });
+  const TileLayerWithNoSSR = dynamic(() => import("react-leaflet").then((mod) => mod.TileLayer), { ssr: false });
+  const PolylineWithNoSSR = dynamic(() => import("react-leaflet").then((mod) => mod.Polyline), { ssr: false });
+  const CircleWithNoSSR = dynamic(() => import("react-leaflet").then((mod) => mod.Circle), { ssr: false });
+  const FitBoundsWithNoSSR = dynamic(() => import("./FitBounds"), { ssr: false })
+
+  useEffect(()=>{
+    const fetchData = async () => {
+        const token = await getAuth();
+        const data = parseJwt(token);
+        setDriverId(data.userId);
+        console.log(data); 
+        console.log("Current token:", token);
+    };
+    fetchData();
+},[])
 
   useInterval(() => {
     if (selectedJob?.booking_id) { 
@@ -196,21 +215,21 @@ export default function DriverStatus() {
             </Typography>
             <div className="mt-4 flex flex-col">
               {selectedJob ? (
-                <MapContainer
-                  center={driverCoordinates}
-                  zoom={12}
-                  style={{ height: "400px", width: "100%" }}
-                >
-                  <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-                  />
-                  {routeCoordinates.length > 0 && (
-                    <Polyline positions={routeCoordinates} color="red" weight={5} />
-                  )}
-                  <Circle center={driverCoordinates} radius={100} color="red" fillOpacity={0.5} />
-                  <FitBounds routeCoordinates={routeCoordinates} driverCoordinates={driverCoordinates} />
-                </MapContainer>
+                <MapWithNoSSR
+                center={driverCoordinates}
+                zoom={12}
+                style={{ height: "400px", width: "100%" }}
+              >
+                <TileLayerWithNoSSR
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+                />
+                {routeCoordinates.length > 0 && (
+                  <PolylineWithNoSSR positions={routeCoordinates} color="red" weight={5} />
+                )}
+                <CircleWithNoSSR center={driverCoordinates} radius={100} color="red" fillOpacity={0.5} />
+                <FitBoundsWithNoSSR routeCoordinates={routeCoordinates} driverCoordinates={driverCoordinates} />
+              </MapWithNoSSR>
               ) : (
                 <Typography>Loading route...</Typography>
               )}

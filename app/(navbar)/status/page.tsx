@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import {
     Box,
     Typography,
@@ -13,56 +14,13 @@ import {
     Button,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { MapContainer, TileLayer, Polyline, Marker, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 import { getSelectedBooking } from "@/actions/api";
+import { getAuth } from "@/actions/cookie";
+import { parseJwt } from "@/actions/utils";
 
-interface Coordinates {
-    lat: number;
-    lng: number;
-}
-
-const createCustomIcon = (color: string) => {
-    return L.divIcon({
-        className: "custom-marker",
-        html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white;"></div>`,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-    });
-};
-
-const pickupIcon = createCustomIcon("green");
-const dropoffIcon = createCustomIcon("red");
-const driverIcon = createCustomIcon("blue");
-
-const MapWithMarkers = ({ pickup, dropoff, driver, route }: any) => {
-    const map = useMap();
-
-    useEffect(() => {
-        if (pickup && dropoff) {
-            const bounds = L.latLngBounds([
-                [pickup.lat, pickup.lng],
-                [dropoff.lat, dropoff.lng],
-            ]);
-            map.fitBounds(bounds);
-        }
-
-        if (route.length > 0) {
-            const routeBounds = L.latLngBounds(route.map((point: [number, number]) => [point[0], point[1]]));
-            map.fitBounds(routeBounds);
-        }
-    }, [pickup, dropoff, route, map]);
-
-    return (
-        <>
-            <Marker position={[pickup.lat, pickup.lng]} icon={pickupIcon} />
-            <Marker position={[dropoff.lat, dropoff.lng]} icon={dropoffIcon} />
-            {driver && <Marker position={[driver.lat, driver.lng]} icon={driverIcon} />}
-            {route.length > 0 && <Polyline positions={route} color="blue" />}
-        </>
-    );
-};
+const MapContainer = dynamic(() => import("react-leaflet").then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import("react-leaflet").then(mod => mod.TileLayer), { ssr: false });
+const MapWithMarkers = dynamic(() => import('./MapWithMarkers'), { ssr: false });
 
 export default function UserDashboard() {
     const [latestBooking, setLatestBooking] = useState<any>(null);
@@ -71,11 +29,20 @@ export default function UserDashboard() {
     const [loading, setLoading] = useState(true);
     const [snackbarOpen, setSnackbarOpen] = useState(false);
     const [fetchError, setFetchError] = useState(false);
+    const [userId, setUserId] = useState("");
+
+    useEffect(() => {
+        const fetchData = async () => {
+            const token = await getAuth();
+            const data = parseJwt(token);
+            setUserId(data.userId);
+            console.log("User ID:", data.userId);
+        };
+        fetchData();
+    }, []);
 
     const fetchBookings = async () => {
         try {
-            const userId = localStorage.getItem("userid");
-            console.log(userId);
             if (!userId) {
                 setFetchError(true);
                 return;
@@ -95,38 +62,41 @@ export default function UserDashboard() {
                     pickupLocation: latest.pickup_location_address,
                     dropoffLocation: latest.dropoff_location_address,
                     pickupCoordinates: {
-                        lat: parseFloat(latest.pickup_geolocation.split(',')[0]),
-                        lng: parseFloat(latest.pickup_geolocation.split(',')[1]),
+                        lat: parseFloat(latest.pickup_geolocation.split(",")[0]),
+                        lng: parseFloat(latest.pickup_geolocation.split(",")[1]),
                     },
                     dropoffCoordinates: {
-                        lat: parseFloat(latest.dropoff_geolocation.split(',')[0]),
-                        lng: parseFloat(latest.dropoff_geolocation.split(',')[1]),
+                        lat: parseFloat(latest.dropoff_geolocation.split(",")[0]),
+                        lng: parseFloat(latest.dropoff_geolocation.split(",")[1]),
                     },
                     driverCoordinates: {
                         lat: parseFloat(latest.latitude),
                         lng: parseFloat(latest.longitude),
                     },
-                    route: latest.graphhopper_response.paths[0].points.coordinates.map((point: [number, number]) => [point[1], point[0]]), // Extracting route from graphhopper_response
+                    route: latest.graphhopper_response.paths[0].points.coordinates.map((point: [number, number]) => [
+                        point[1],
+                        point[0],
+                    ]), 
                 });
-                setFetchError(false); 
+                setFetchError(false);
             } else {
                 console.error("Invalid data structure", data);
-                setFetchError(true); 
+                setFetchError(true);
             }
         } catch (error) {
             console.error("Error fetching bookings:", error);
-            setFetchError(true); 
+            setFetchError(true);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchBookings(); 
-    }, []);
+        fetchBookings();
+    }, [userId]);
 
     const handleAccordionChange = () => {
-        setExpanded((prev) => !prev);
+        setExpanded(prev => !prev);
         if (!expanded && latestBooking) {
             setRoute(latestBooking.route);
         }
@@ -145,7 +115,7 @@ export default function UserDashboard() {
                     <Typography variant="h6">
                         No driver has yet accepted your bookings. Please try again later.
                     </Typography>
-                    <Button style={{backgroundColor: "black", color: "white" }} variant="contained" onClick={fetchBookings} sx={{ mt: 2 }}>
+                    <Button style={{ backgroundColor: "black", color: "white" }} variant="contained" onClick={fetchBookings} sx={{ mt: 2 }}>
                         Try Again
                     </Button>
                 </Box>

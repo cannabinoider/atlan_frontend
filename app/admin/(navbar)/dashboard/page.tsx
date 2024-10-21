@@ -20,6 +20,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import AddIcon from '@mui/icons-material/Add';
 import { getVehicles, updateVehicle, addVehicle, } from "@/actions/api";
 import { getAuth } from "@/actions/cookie";
+import { parseJwt } from "@/actions/utils";
 
 const modalStyle = {
     position: 'absolute',
@@ -51,6 +52,10 @@ export default function UserDashboard() {
 
     useEffect(() => {
         const fetchVehicles = async () => {
+            const token = await getAuth();
+            const data = parseJwt(token);
+            // console.log(data); 
+            // console.log("Current token:", token);
             try {
                 const data = await getVehicles();
                 setVehicles(data.vehicles);

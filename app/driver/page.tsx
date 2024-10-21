@@ -25,11 +25,6 @@ export default function Home() {
       const data = await loginDriver({ username, password });
 
       await setAuth(data.token);
-      localStorage.setItem('driverId', data.driver.userId.toString());
-      localStorage.setItem('driverName', data.driver.userName);
-      localStorage.setItem('driverEmail', data.driver.userEmail);
-      localStorage.setItem('driverPhone', data.driver.userPhone);
-      localStorage.setItem('token', data.token);
       router.push("/driver/dashboard");
     } catch (error: any) {
       setError(true);
@@ -47,7 +42,7 @@ export default function Home() {
           <h1 className="text-5xl font-bold mb-6">GoodPort</h1>
         </div>
         <Typography variant="h4" gutterBottom>
-          Login
+          Driver Login
         </Typography>
 
         <form

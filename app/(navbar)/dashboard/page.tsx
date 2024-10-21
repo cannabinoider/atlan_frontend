@@ -19,10 +19,21 @@ import {
     Grid,
 } from "@mui/material";
 import LocationOnIcon from '@mui/icons-material/LocationOn';
-import { MapContainer, TileLayer, Polyline, Marker, useMap, Popup } from 'react-leaflet'; 
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { addBooking } from "@/actions/api";
+import { getAuth } from "@/actions/cookie";
+import { parseJwt } from "@/actions/utils";
+import {useRouter} from "next/navigation";
+import dynamic from "next/dynamic";
+
+const MapWithMarkers = dynamic(() => import('./MapWithMarkers'), {
+    ssr: false
+});
+const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
+
+
 
 interface Coordinates {
     lat: number;
@@ -36,10 +47,11 @@ enum VehicleType {
 
 enum GoodType {
     PERISHABLE = "perishable",
-    NON_PERISHABLE = "nonPerishable",
+    NON_PERISHABLE = "non-perishable",
 }
 
 export default function UserDashboard() {
+    const router = useRouter();
     const [tabValue, setTabValue] = useState(0);
     const [goodType, setGoodType] = useState("");
     const [weight, setWeight] = useState("");
@@ -52,7 +64,8 @@ export default function UserDashboard() {
     const [dropoffSuggestions, setDropoffSuggestions] = useState<any[]>([]);
     const [route, setRoute] = useState<[number, number][]>([]);
     const [loading, setLoading] = useState(false);
-    const username = localStorage.getItem('username');
+    const[username,setUsername] = useState("");
+    const[usersid,setUsersid] = useState("");
     const [estimatedCost, setEstimatedCost] = useState(0); 
     const [userAmount, setUserAmount] = useState("");
     const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -60,12 +73,23 @@ export default function UserDashboard() {
     const [isPaymentProcessed, setIsPaymentProcessed] = useState(false);
     const [distance, setDistance] = useState(0);
     const [graphhopperResponse, setGraphhopperResponse] = useState(null); 
-    const usersid = localStorage.getItem("userid");
 
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
     };
-    
+        
+    useEffect(()=>{
+        const fetchData = async () => {
+            const token = await getAuth();
+            const data = parseJwt(token);
+            setUsername(data.userName);
+            setUsersid(data.userId);
+            // console.log(data); 
+            // console.log("Current token:", token);
+        };
+        fetchData();
+    },[])
+
     const fetchCoordinates = async (location: string) => {
         const apiKey = `${process.env.NEXT_PUBLIC_API_KEY}`;
         const response = await fetch(
@@ -125,14 +149,17 @@ export default function UserDashboard() {
         }
 
         const data = await response.json();
+        // console.log(data);
         setGraphhopperResponse(data);  
         const points = data.paths[0].points.coordinates.map((point: [number, number]) => [point[1], point[0]]);
         setRoute(points);
         const distanceInMeters = data.paths[0].distance;
+        // console.log(1,distanceInMeters);
         const distanceInKilometers = distanceInMeters / 1000; 
+        // console.log(2,distanceInKilometers);
         setDistance(distanceInKilometers); 
 
-        const cost = calculateEstimatedCost();
+        const cost = calculateEstimatedCost(distanceInKilometers);
         setEstimatedCost(cost);
 
         setLoading(false);
@@ -146,22 +173,25 @@ export default function UserDashboard() {
         [GoodType.PERISHABLE]: 2,
         [GoodType.NON_PERISHABLE]: 1,
     };
-    const calculateEstimatedCost = () => {
+    const calculateEstimatedCost = (distanceInKilometers: number):number => {
         const baseCostPerKg = 10; 
 
-        const weightCost = weight ? baseCostPerKg * Number(weight) : 0; 
-        const vehicleCost = vehicleType ? weightCost * vehicleCostMultiplier[vehicleType as VehicleType] : 0; 
-        const goodTypeCost = goodType ? vehicleCost * goodTypeMultiplier[goodType as GoodType] : 0; 
-        const distanceCost = distance * 10; 
-
-        return weightCost + vehicleCost + goodTypeCost + distanceCost;
+        const weightCost:number = weight ? baseCostPerKg * Number(weight) : 0; 
+        const vehicleCost:number = vehicleType ? weightCost * vehicleCostMultiplier[vehicleType as VehicleType] : 0; 
+        const goodTypeCost:number = goodType ? vehicleCost * goodTypeMultiplier[goodType as GoodType] : 0; 
+        const distanceCost:number = distanceInKilometers * 10; 
+        // console.log("goodType",goodType);
+        // console.log("weight",weightCost,"vehicle",vehicleCost,"good",goodTypeCost,"distance",distanceCost);
+        // console.log(weightCost+vehicleCost+goodTypeCost+distanceCost);
+        return Number((weightCost + vehicleCost + goodTypeCost + distanceCost).toFixed(2));
     };
 
     useEffect(() => {
-        if (pickupCoordinates && dropoffCoordinates) {
+        if (pickupCoordinates && dropoffCoordinates && goodType && vehicleType && weight ) {
             fetchRoute();
         }
-    }, [pickupCoordinates, dropoffCoordinates]);
+    }, [pickupCoordinates, dropoffCoordinates, goodType, vehicleType, weight]);
+
 
     const handleBookingSubmit = (event: React.FormEvent) => {
         event.preventDefault();
@@ -192,89 +222,20 @@ export default function UserDashboard() {
                 payment_status: estimatedCost.toString(),  
                 graphhopper_response: graphhopperResponse
             };
-            console.log(bookingData);
+            // console.log(bookingData);
     
             try {
                 await addBooking(bookingData);  
                 setIsBookingConfirmed(true);
                 console.log("Booking response:", bookingData);
-                setIsBookingConfirmed(true);
+                router.push("/status");
             } catch (error) {
                 console.error("Error confirming booking:", error);
             }
         }
     };
 
-    const MapWithMarkers = ({ pickup, dropoff, route }: any) => {
-        const map = useMap();
-        const [pickupPosition, setPickupPosition] = useState<any>(null);
-        const [dropoffPosition, setDropoffPosition] = useState<any>(null);
-    
-        useEffect(() => {
-            const updatePositions = () => {
-                if (pickup) {
-                    setPickupPosition(map.latLngToContainerPoint([pickup.lat, pickup.lng]));
-                }
-                if (dropoff) {
-                    setDropoffPosition(map.latLngToContainerPoint([dropoff.lat, dropoff.lng]));
-                }
-            };
-    
-            map.on('moveend', updatePositions);
-            updatePositions();
-            return () => {
-                map.off('moveend', updatePositions);
-            };
-        }, [pickup, dropoff, map]);
-    
-        useEffect(() => {
-            if (pickup && dropoff) {
-                const bounds = L.latLngBounds([
-                    [pickup.lat, pickup.lng],
-                    [dropoff.lat, dropoff.lng],
-                ]);
-                map.fitBounds(bounds);
-            }
-    
-            if (route.length > 0) {
-                const routeBounds = L.latLngBounds(route.map((point: [number, number]) => [point[0], point[1]]));
-                map.fitBounds(routeBounds);
-            }
-        }, [pickup, dropoff, route, map]);
-    
-        return (
-            <>
-                {pickupPosition && (
-                    <div
-                        style={{
-                            position: 'absolute',
-                            left: `${pickupPosition.x}px`,
-                            top: `${pickupPosition.y}px`,
-                            transform: 'translate(-50%, -100%)',
-                            zIndex: 1000,
-                        }}
-                    >
-                        <LocationOnIcon style={{ color: "green", fontSize: "30px" }} />
-                    </div>
-                )}
-                {dropoffPosition && (
-                    <div
-                        style={{
-                            position: 'absolute',
-                            left: `${dropoffPosition.x}px`,
-                            top: `${dropoffPosition.y}px`,
-                            transform: 'translate(-50%, -100%)',
-                            zIndex: 1000,
-                        }}
-                    >
-                        <LocationOnIcon style={{ color: "red", fontSize: "30px" }} />
-                    </div>
-                )}
-                {route.length > 0 && <Polyline positions={route} color="blue" />}
-            </>
-        );
-    };
-    
+ 
     return (
         <div className="mx-5 ml-[200px] mt-11 max-[1420px]:mx-10 max-lg:mx-5">
             <div className="mx-5 mt-4">
@@ -531,12 +492,6 @@ export default function UserDashboard() {
                         <CircularProgress />
                     </Box>
                 )}
-                {/* {tabValue === 1 && (
-                    <div className="mt-2">
-                    <Typography variant="h6">Status Tab Content</Typography>
-                </div>
-                )} */}
-
             </div>
             {snackbarOpen && (
             <Snackbar

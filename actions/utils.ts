@@ -1,6 +1,6 @@
 import {jwtVerify} from 'jose';
 
-export function parseJwt(token: string | undefined) {
+export function parseJwt(token: string | null) {
     if (!token || token === undefined || token.split('.').length<2 ) { return; }
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace('-', '+').replace('_', '/');

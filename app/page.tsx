@@ -23,11 +23,7 @@ export default function Home() {
     try {
         const data = await loginUser({ username, password });
         await setAuth(data.token);
-        localStorage.setItem('username', data.user.userName);
-        localStorage.setItem('userid', data.user.userId.toString()); 
-        localStorage.setItem('phone', data.user.userPhone);
-        localStorage.setItem('token', data.token);
-
+        
         router.push("/dashboard");
     } catch (error: any) {
         setError(true);
@@ -47,7 +43,7 @@ export default function Home() {
        <h1 className="text-5xl font-bold mb-6">GoodPort</h1>
         </div>
         <Typography variant="h4" gutterBottom>
-          Login
+          User Login
         </Typography>
 
         <form
